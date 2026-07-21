@@ -22,6 +22,7 @@ from .base import Provider
 #: name -> (module path, class name). Resolved on first use.
 _LAZY: dict[str, tuple[str, str]] = {
     "yfinance": (".yfinance_provider", "YFinanceProvider"),
+    "yahoo": (".yahoo_provider", "YahooProvider"),
 }
 
 #: name -> callable returning a Provider. Populated by register().

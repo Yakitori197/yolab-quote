@@ -48,14 +48,18 @@ from .providers.base import Provider
 #: because the same providers serve them; crypto markets are listed
 #: separately so their vocabulary never reaches the stock path.
 DEFAULT_PRIORITY: dict[str, tuple[str, ...]] = {
-    TW_STOCK: ("yfinance",),
-    US_STOCK: ("yfinance",),
-    HK_STOCK: ("yfinance",),
-    JP_STOCK: ("yfinance",),
-    CN_STOCK: ("yfinance",),
-    UK_STOCK: ("yfinance",),
-    DE_STOCK: ("yfinance",),
-    KR_STOCK: ("yfinance",),
+    # yfinance first for its richer fields (PE, dividend yield), Yahoo's
+    # chart endpoint second. The two share no code path, so a failure in one
+    # is not a failure in both -- and because Yahoo needs only httpx, the
+    # package still works when the optional yfinance extra is absent.
+    TW_STOCK: ("yfinance", "yahoo"),
+    US_STOCK: ("yfinance", "yahoo"),
+    HK_STOCK: ("yfinance", "yahoo"),
+    JP_STOCK: ("yfinance", "yahoo"),
+    CN_STOCK: ("yfinance", "yahoo"),
+    UK_STOCK: ("yfinance", "yahoo"),
+    DE_STOCK: ("yfinance", "yahoo"),
+    KR_STOCK: ("yfinance", "yahoo"),
     CRYPTO_SPOT: (),
     CRYPTO_FUTURES: (),
     CRYPTO_FUTURES_COIN: (),
