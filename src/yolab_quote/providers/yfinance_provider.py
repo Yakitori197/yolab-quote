@@ -89,11 +89,15 @@ def info_to_quote(symbol: str, yahoo_symbol: str, info: dict[str, Any]) -> Quote
     market_cap = to_float(info.get("marketCap"))
     if market_cap is not None:
         extra["market_cap"] = market_cap
-    # yfinance 0.2.x reports this as a ratio (0.0234 == 2.34%). The pin on
-    # <0.3 is what makes this conversion safe to hardcode.
+    # Already a percentage, despite the field name suggesting a ratio.
+    # Measured against yfinance 0.2.66: AAPL reports 0.32 while
+    # dividendRate/price works out to 0.331%, KO reports 2.58 against 2.582%.
+    # (The ratio form lives in trailingAnnualDividendYield.) Every consumer
+    # this package replaced multiplied this by 100 and therefore displayed
+    # yields 100x too large.
     dividend_yield = to_float(info.get("dividendYield"))
     if dividend_yield is not None:
-        extra["dividend_yield"] = dividend_yield * 100.0
+        extra["dividend_yield"] = dividend_yield
     for key, field in (("sector", "sector"), ("industry", "industry")):
         value = info.get(key)
         if value:

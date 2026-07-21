@@ -29,7 +29,7 @@ TW_INFO = {
     "currency": "TWD",
     "trailingPE": 24.5,
     "marketCap": 28_000_000_000_000,
-    "dividendYield": 0.0135,
+    "dividendYield": 1.35,  # already a percentage in 0.2.x, not a ratio
     "sector": "Technology",
 }
 
@@ -50,10 +50,21 @@ class TestInfoToQuote:
         assert quote.change == pytest.approx(15.0)
         assert quote.change_percent == pytest.approx(15.0 / 1070.0 * 100)
 
-    def test_dividend_yield_is_converted_to_percent(self):
-        """yfinance 0.2.x reports a ratio; the <0.3 pin makes this safe."""
+    def test_dividend_yield_is_passed_through_unscaled(self):
+        """Regression: yfinance 0.2.x already reports a percentage.
+
+        Verified against live data: AAPL reports 0.32 while dividendRate/price
+        is 0.331%, KO reports 2.58 against 2.582%. Multiplying by 100 -- which
+        every bot this package replaced did -- inflated yields 100x, turning
+        TSMC's ~1% into 103%.
+        """
         quote = info_to_quote("2330", "2330.TW", TW_INFO)
         assert quote.extra["dividend_yield"] == pytest.approx(1.35)
+
+    def test_a_plausible_yield_stays_plausible(self):
+        """Guards the scaling direction: 2.58 must not become 258."""
+        quote = info_to_quote("KO", "KO", {"currentPrice": 70.0, "dividendYield": 2.58})
+        assert quote.extra["dividend_yield"] < 10.0
 
     def test_optional_fields_land_in_extra(self):
         quote = info_to_quote("2330", "2330.TW", TW_INFO)
