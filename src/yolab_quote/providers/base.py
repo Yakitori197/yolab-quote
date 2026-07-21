@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from types import TracebackType
 
 from ..exceptions import ProviderError, ProviderUnavailableError
-from ..models import Bar, ProviderHealth, Quote
+from ..models import Bar, ProviderHealth, Quote, SearchResult
 
 
 class Provider(ABC):
@@ -99,6 +99,14 @@ class Provider(ABC):
     def get_bars(self, symbol: str, days: int = 30) -> list[Bar]:
         """Fetch recent daily candles, oldest first."""
         raise ProviderUnavailableError(f"{self.name} does not provide historical bars")
+
+    def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+        """Look up symbols by free-text query, best match first.
+
+        Distinct from the bundled name tables: this reaches the upstream
+        source, so it finds listings the tables have never heard of.
+        """
+        raise ProviderUnavailableError(f"{self.name} does not provide symbol search")
 
     def supports(self, market: str) -> bool:
         """True if this provider serves ``market``."""

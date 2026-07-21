@@ -31,12 +31,14 @@ from ..markets import (
     detect_market,
     normalize_stock,
 )
-from ..models import Bar, ProviderHealth, Quote, to_float
+from ..models import Bar, ProviderHealth, Quote, SearchResult, to_float
 from .base import Provider
 
 _SOURCE = "yahoo"
 
 BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+
+SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
 
 # Yahoo rejects requests without a browser-like agent.
 DEFAULT_HEADERS = {
@@ -235,6 +237,37 @@ def parse_chart_bars(symbol: str, payload: dict[str, Any]) -> list[Bar]:
     return bars
 
 
+def parse_search_results(payload: dict[str, Any], limit: int = 5) -> list[SearchResult]:
+    """Map a search response onto :class:`SearchResult` entries.
+
+    Results are returned as-is from upstream, including crypto pairs and
+    indices. Entries without a symbol are dropped rather than guessed at.
+    """
+    quotes = payload.get("quotes")
+    if not isinstance(quotes, list):
+        return []
+
+    results: list[SearchResult] = []
+    for item in quotes:
+        if len(results) >= limit:
+            break
+        if not isinstance(item, dict):
+            continue
+        symbol = item.get("symbol")
+        if not symbol:
+            continue
+        name = item.get("longname") or item.get("shortname") or str(symbol)
+        results.append(
+            SearchResult(
+                symbol=str(symbol),
+                name=str(name),
+                exchange=item.get("exchDisp") or item.get("exchange"),
+                quote_type=item.get("quoteType"),
+            )
+        )
+    return results
+
+
 class YahooProvider(Provider):
     """Delayed equity quotes from Yahoo's public chart endpoint."""
 
@@ -290,6 +323,37 @@ class YahooProvider(Provider):
         yahoo_symbol = normalize_stock(symbol)
         payload = self._fetch(yahoo_symbol, chart_range=range_for_days(days), interval="1d")
         return parse_chart_bars(symbol, payload)[-days:]
+
+    def _fetch_search(self, query: str, limit: int) -> dict[str, Any]:
+        """Seam: overridden in tests so search needs no network."""
+        params: dict[str, str | int] = {
+            "q": query,
+            "quotesCount": limit,
+            "newsCount": 0,
+            "listsCount": 0,
+            "enableFuzzyQuery": "true",
+        }
+        try:
+            response = self._http().get(SEARCH_URL, params=params)
+        except httpx.HTTPError as exc:
+            raise ProviderError(f"Yahoo search failed for {query!r}: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise ProviderError(f"Yahoo search returned HTTP {response.status_code}")
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise ProviderError("Yahoo search returned non-JSON") from exc
+        if not isinstance(payload, dict):
+            raise ProviderError("Yahoo search returned unexpected JSON")
+        return payload
+
+    def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+        if not query or not query.strip():
+            return []
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        return parse_search_results(self._fetch_search(query.strip(), limit), limit)
 
     def health(self) -> ProviderHealth:
         # No network call: a health endpoint that hangs is worse than a stale

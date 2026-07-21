@@ -25,6 +25,7 @@ from .client import (
     get_quotes,
     health,
     reset_default_client,
+    search_symbols,
 )
 from .exceptions import (
     AllProvidersFailedError,
@@ -54,8 +55,9 @@ from .markets import (
     is_tw_code,
     normalize_stock,
 )
-from .models import Bar, ProviderHealth, Quote, to_float
-from .names import get_code, get_name, resolve, search
+from .models import Bar, ProviderHealth, Quote, SearchResult, to_float
+from .names import get_code, get_name, resolve
+from .names import search as search_names  # offline tables; cf. search_symbols (online)
 from .providers import Provider, available, create, register, unregister
 
 __version__ = "0.1.0"
@@ -64,6 +66,7 @@ __all__ = [
     # models
     "Quote",
     "Bar",
+    "SearchResult",
     "ProviderHealth",
     "to_float",
     # client
@@ -80,11 +83,12 @@ __all__ = [
     "create",
     "register",
     "unregister",
-    # names
+    # names (offline tables) and symbol search (online)
     "resolve",
     "get_name",
     "get_code",
-    "search",
+    "search_names",
+    "search_symbols",
     # markets
     "normalize_stock",
     "detect_market",

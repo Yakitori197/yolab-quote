@@ -217,6 +217,31 @@ class Bar:
 
 
 @dataclass(frozen=True)
+class SearchResult:
+    """One candidate from a symbol lookup.
+
+    Deliberately does not carry a market identifier: results include crypto
+    pairs and indices whose symbols the equity routing rules would classify
+    wrongly. Callers that need a market can derive one from
+    :attr:`quote_type` or by calling ``detect_market`` themselves.
+    """
+
+    symbol: str
+    name: str
+    exchange: str | None = None
+    #: Upstream classification: EQUITY, ETF, INDEX, CRYPTOCURRENCY, ...
+    quote_type: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "symbol": self.symbol,
+            "name": self.name,
+            "exchange": self.exchange,
+            "quote_type": self.quote_type,
+        }
+
+
+@dataclass(frozen=True)
 class ProviderHealth:
     """A provider's self-report.
 

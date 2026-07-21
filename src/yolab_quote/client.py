@@ -41,7 +41,7 @@ from .markets import (
     clean,
     detect_market,
 )
-from .models import Bar, ProviderHealth, Quote
+from .models import Bar, ProviderHealth, Quote, SearchResult
 from .providers.base import Provider
 
 #: Default fallback order per market. Every equity market shares a chain
@@ -64,6 +64,10 @@ DEFAULT_PRIORITY: dict[str, tuple[str, ...]] = {
     CRYPTO_FUTURES: (),
     CRYPTO_FUTURES_COIN: (),
 }
+
+#: Symbol search is not routed by market -- a free-text query spans all of
+#: them -- so it walks its own chain instead of DEFAULT_PRIORITY.
+DEFAULT_SEARCH_PROVIDERS: tuple[str, ...] = ("yahoo",)
 
 #: Environment override, e.g. YOLAB_QUOTE_TW_STOCK_PROVIDERS=yfinance,yahoo_scraper
 ENV_PREFIX = "YOLAB_QUOTE_"
@@ -268,6 +272,39 @@ class QuoteClient:
         raise AllProvidersFailedError(cleaned, resolved_market, failures or {"(none)": "no providers"})
 
     # ------------------------------------------------------------------ #
+    # Symbol search
+    # ------------------------------------------------------------------ #
+    def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+        """Look up symbols by free-text query.
+
+        Reaches the upstream source, so it finds listings the bundled name
+        tables have never heard of. An empty query returns nothing; a query
+        that simply has no matches returns an empty list. Only a genuine
+        failure of every provider raises.
+        """
+        if not query or not query.strip():
+            return []
+
+        failures: dict[str, str] = {}
+        for name in DEFAULT_SEARCH_PROVIDERS:
+            provider = self._get_provider(name)
+            if provider is None:
+                failures[name] = "could not be constructed"
+                continue
+            try:
+                return provider.search(query, limit)
+            except QuoteError as exc:
+                failures[name] = str(exc)
+                continue
+            except Exception as exc:  # noqa: BLE001
+                failures[name] = f"unexpected {type(exc).__name__}: {exc}"
+                continue
+
+        raise AllProvidersFailedError(
+            query, "search", failures or {"(none)": "no search providers configured"}
+        )
+
+    # ------------------------------------------------------------------ #
     # Introspection and lifecycle
     # ------------------------------------------------------------------ #
     def health(self) -> dict[str, ProviderHealth]:
@@ -349,6 +386,15 @@ def get_quotes(symbols: Iterable[str], market: str | None = None) -> dict[str, Q
 def get_bars(symbol: str, days: int = 30, market: str | None = None) -> list[Bar]:
     """Fetch daily candles using the default client."""
     return get_default_client().get_bars(symbol, days, market)
+
+
+def search_symbols(query: str, limit: int = 5) -> list[SearchResult]:
+    """Look up symbols online using the default client.
+
+    Distinct from :func:`yolab_quote.search_names`, which searches the
+    bundled Chinese name tables offline.
+    """
+    return get_default_client().search(query, limit)
 
 
 def health() -> dict[str, ProviderHealth]:

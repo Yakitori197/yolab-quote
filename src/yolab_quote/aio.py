@@ -19,7 +19,7 @@ import asyncio
 from collections.abc import Iterable
 
 from .client import QuoteClient, get_default_client
-from .models import Bar, ProviderHealth, Quote
+from .models import Bar, ProviderHealth, Quote, SearchResult
 
 
 class AsyncQuoteClient:
@@ -64,6 +64,9 @@ class AsyncQuoteClient:
     async def get_bars(self, symbol: str, days: int = 30, market: str | None = None) -> list[Bar]:
         return await asyncio.to_thread(self._client.get_bars, symbol, days, market)
 
+    async def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+        return await asyncio.to_thread(self._client.search, query, limit)
+
     async def health(self) -> dict[str, ProviderHealth]:
         return await asyncio.to_thread(self._client.health)
 
@@ -95,9 +98,21 @@ async def get_bars(symbol: str, days: int = 30, market: str | None = None) -> li
     return await asyncio.to_thread(get_default_client().get_bars, symbol, days, market)
 
 
+async def search_symbols(query: str, limit: int = 5) -> list[SearchResult]:
+    """Look up symbols off the event loop, using the default client."""
+    return await asyncio.to_thread(get_default_client().search, query, limit)
+
+
 async def health() -> dict[str, ProviderHealth]:
     """Provider health off the event loop, using the default client."""
     return await asyncio.to_thread(get_default_client().health)
 
 
-__all__ = ["AsyncQuoteClient", "get_quote", "get_quotes", "get_bars", "health"]
+__all__ = [
+    "AsyncQuoteClient",
+    "get_quote",
+    "get_quotes",
+    "get_bars",
+    "search_symbols",
+    "health",
+]
