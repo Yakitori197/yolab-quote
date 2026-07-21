@@ -55,6 +55,7 @@ from .markets import (
     normalize_stock,
 )
 from .models import Bar, ProviderHealth, Quote, to_float
+from .names import get_code, get_name, resolve, search
 from .providers import Provider, available, create, register, unregister
 
 __version__ = "0.1.0"
@@ -79,6 +80,11 @@ __all__ = [
     "create",
     "register",
     "unregister",
+    # names
+    "resolve",
+    "get_name",
+    "get_code",
+    "search",
     # markets
     "normalize_stock",
     "detect_market",
