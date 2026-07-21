@@ -99,11 +99,16 @@ class TestInfoToQuote:
 class TestPeriodForDays:
     @pytest.mark.parametrize(
         ("days", "period"),
-        [(1, "5d"), (5, "5d"), (7, "1mo"), (30, "1mo"), (60, "3mo"),
-         (120, "6mo"), (200, "1y"), (500, "2y")],
+        [(1, "1mo"), (15, "1mo"), (30, "3mo"), (60, "6mo"),
+         (120, "1y"), (200, "2y"), (500, "5y")],
     )
     def test_period(self, days, period):
         assert period_for_days(days) == period
+
+    def test_120_bars_spans_a_full_year(self):
+        """Regression: a calendar-based mapping returned '6mo' for 120 bars,
+        which does not contain 120 trading sessions."""
+        assert period_for_days(120) == "1y"
 
 
 class TestProviderSeams:

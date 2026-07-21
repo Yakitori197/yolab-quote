@@ -172,10 +172,15 @@ class TestParseBars:
 class TestRangeForDays:
     @pytest.mark.parametrize(
         ("days", "expected"),
-        [(1, "5d"), (5, "5d"), (30, "1mo"), (60, "3mo"), (200, "1y"), (900, "2y")],
+        [(1, "1mo"), (15, "1mo"), (20, "3mo"), (60, "6mo"), (120, "1y"), (200, "2y"), (900, "5y")],
     )
     def test_range(self, days, expected):
         assert range_for_days(days) == expected
+
+    def test_120_bars_spans_a_full_year(self):
+        """Regression: 120 bars mapped to '6mo' (~126 sessions before
+        holidays), so an MA120 built on it was always empty."""
+        assert range_for_days(120) == "1y"
 
 
 class TestProvider:

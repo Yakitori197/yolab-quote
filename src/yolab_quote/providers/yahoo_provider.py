@@ -51,18 +51,25 @@ DEFAULT_TIMEOUT = 15.0
 
 
 def range_for_days(days: int) -> str:
-    """Smallest chart ``range`` value that covers ``days`` calendar days."""
-    if days <= 5:
-        return "5d"
-    if days <= 30:
+    """Smallest chart ``range`` yielding at least ``days`` *trading* sessions.
+
+    Callers ask for a number of daily bars, not a span of calendar days, and
+    a year holds only ~252 sessions. Mapping 120 bars onto "6mo" (~126
+    calendar-derived sessions, fewer after holidays) came up short, which
+    silently produced an empty MA120 downstream. Each bucket is sized with
+    headroom so the requested count is actually available.
+    """
+    if days <= 15:
         return "1mo"
-    if days <= 90:
+    if days <= 40:
         return "3mo"
-    if days <= 180:
+    if days <= 80:
         return "6mo"
-    if days <= 365:
+    if days <= 170:
         return "1y"
-    return "2y"
+    if days <= 340:
+        return "2y"
+    return "5y"
 
 
 def _result(payload: dict[str, Any], symbol: str) -> dict[str, Any]:

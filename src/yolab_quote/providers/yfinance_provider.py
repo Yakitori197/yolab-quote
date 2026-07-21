@@ -120,18 +120,24 @@ def info_to_quote(symbol: str, yahoo_symbol: str, info: dict[str, Any]) -> Quote
 
 
 def period_for_days(days: int) -> str:
-    """Smallest yfinance period string that covers ``days`` calendar days."""
-    if days <= 5:
-        return "5d"
-    if days <= 30:
+    """Smallest yfinance period yielding at least ``days`` *trading* sessions.
+
+    Callers ask for a number of daily bars, not calendar days, and a year
+    holds only ~252 sessions. Sized with headroom so a request for 120 bars
+    returns 120 -- the naive calendar mapping fell short and silently
+    produced an empty MA120 downstream.
+    """
+    if days <= 15:
         return "1mo"
-    if days <= 90:
+    if days <= 40:
         return "3mo"
-    if days <= 180:
+    if days <= 80:
         return "6mo"
-    if days <= 365:
+    if days <= 170:
         return "1y"
-    return "2y"
+    if days <= 340:
+        return "2y"
+    return "5y"
 
 
 class YFinanceProvider(Provider):
