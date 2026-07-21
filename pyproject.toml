@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yolab-quote"
+version = "0.1.0"
+description = "Unified market data for Taiwan/US stocks and crypto: one sync-first API, multiple providers, automatic fallback"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "YoLab" }
+]
+keywords = [
+    "stock", "quote", "market-data", "taiwan-stock", "tw-stock",
+    "yfinance", "finance", "crypto", "binance",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
+dependencies = [
+    # httpx covers both the sync and the async transport, so supporting an
+    # async wrapper costs no extra dependency.
+    "httpx>=0.27,<1",
+]
+
+[project.optional-dependencies]
+# yfinance is deliberately NOT a hard dependency. Every bot this package was
+# extracted from guards its import with try/except ImportError, and one of
+# them actually shipped to production without it installed. The upper bound
+# is not decoration: yfinance 1.x is a breaking rewrite of the 0.2.x API this
+# provider is written against.
+yfinance = ["yfinance>=0.2.36,<0.3"]
+scraper = ["beautifulsoup4>=4.12,<5"]
+all = ["yolab-quote[yfinance,scraper]"]
+dev = [
+    "pytest>=8.0,<10",
+    "respx>=0.21,<1",
+    "ruff>=0.5,<1",
+    "mypy>=1.8,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Yakitori197/yolab-quote"
+Repository = "https://github.com/Yakitori197/yolab-quote"
+Issues = "https://github.com/Yakitori197/yolab-quote/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yolab_quote"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+# yfinance is an optional extra and ships no type stubs. The provider guards
+# the import at runtime, so a missing module here is expected, not an error.
+[[tool.mypy.overrides]]
+module = ["yfinance.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
