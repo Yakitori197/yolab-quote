@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yolab-quote"
-version = "0.1.0"
-description = "Unified market data for Taiwan/US stocks and crypto: one sync-first API, multiple providers, automatic fallback"
+version = "0.1.1"
+description = "Unified market data for Taiwan/US stocks: one sync-first API, multiple providers, automatic fallback"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = [
     "stock", "quote", "market-data", "taiwan-stock", "tw-stock",
-    "yfinance", "finance", "crypto", "binance",
+    "yfinance", "finance",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -43,8 +43,7 @@ dependencies = [
 # is not decoration: yfinance 1.x is a breaking rewrite of the 0.2.x API this
 # provider is written against.
 yfinance = ["yfinance>=0.2.36,<0.3"]
-scraper = ["beautifulsoup4>=4.12,<5"]
-all = ["yolab-quote[yfinance,scraper]"]
+all = ["yolab-quote[yfinance]"]
 dev = [
     "pytest>=8.0,<10",
     "respx>=0.21,<1",

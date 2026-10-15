@@ -94,6 +94,16 @@ class TestFallback:
         assert error.symbol == "2330"
         assert error.market == markets.TW_STOCK
 
+    def test_unbuildable_provider_reports_the_reason(self):
+        """A misspelt name used to read as a bare "could not be constructed"."""
+        good = FakeProvider("good", [markets.TW_STOCK], error=ProviderError("down"))
+        client = QuoteClient(
+            providers={"good": good}, priority={markets.TW_STOCK: ["good", "typo"]}, ttl=0
+        )
+        with pytest.raises(AllProvidersFailedError) as excinfo:
+            client.get_quote("2330")
+        assert "unknown provider 'typo'" in excinfo.value.failures["typo"]
+
     def test_no_providers_configured_raises(self):
         client = QuoteClient(providers={}, priority={markets.TW_STOCK: []}, ttl=0)
         with pytest.raises(AllProvidersFailedError):

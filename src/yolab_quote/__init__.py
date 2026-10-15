@@ -1,4 +1,4 @@
-"""yolab-quote -- unified market data for Taiwan/US stocks and crypto.
+"""yolab-quote -- unified market data for Taiwan/US stocks.
 
 One synchronous API over several providers, with automatic fallback:
 
@@ -10,8 +10,11 @@ One synchronous API over several providers, with automatic fallback:
 Bare Taiwan codes are resolved for you, including the leveraged and inverse
 ETFs (``00631L``, ``00632R``) that a digits-only rule silently mis-routes.
 
-Nothing heavy is imported here: ``yfinance`` and ``bs4`` load only when a
-provider that needs them is actually built.
+Crypto markets are defined, but no built-in provider serves them; register
+one with :func:`register` to query them.
+
+Nothing heavy is imported here: ``yfinance`` loads only when the provider
+that needs it is actually built.
 """
 
 from __future__ import annotations
@@ -60,7 +63,7 @@ from .names import get_code, get_name, resolve
 from .names import search as search_names  # offline tables; cf. search_symbols (online)
 from .providers import Provider, available, create, register, unregister
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     # models

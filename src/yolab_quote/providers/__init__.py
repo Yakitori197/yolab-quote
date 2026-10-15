@@ -1,7 +1,7 @@
 """Provider registry.
 
-Lazy by design: importing this package must not pull in ``yfinance``,
-``bs4``, or anything else heavy. Entries hold module paths and are resolved
+Lazy by design: importing this package must not pull in ``yfinance`` or
+anything else heavy. Entries hold module paths and are resolved
 only when a provider is actually built.
 
 Unlike the private hardcoded dict this replaces, third parties can register

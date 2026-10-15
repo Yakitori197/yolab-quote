@@ -69,7 +69,7 @@ DEFAULT_PRIORITY: dict[str, tuple[str, ...]] = {
 #: them -- so it walks its own chain instead of DEFAULT_PRIORITY.
 DEFAULT_SEARCH_PROVIDERS: tuple[str, ...] = ("yahoo",)
 
-#: Environment override, e.g. YOLAB_QUOTE_TW_STOCK_PROVIDERS=yfinance,yahoo_scraper
+#: Environment override, e.g. YOLAB_QUOTE_TW_STOCK_PROVIDERS=yfinance,yahoo
 ENV_PREFIX = "YOLAB_QUOTE_"
 
 DEFAULT_MAX_WORKERS = 8
@@ -115,6 +115,10 @@ class QuoteClient:
         self._cache = TTLCache(ttl) if cache is None and ttl > 0 else cache
         self._max_workers = max(1, max_workers)
         self._lock = threading.Lock()
+        # name -> why it could not be built. Without this, a typo in a
+        # priority list (say ``yahoo_scraper`` for ``yahoo``) reads as a
+        # generic construction failure and quietly removes the fallback.
+        self._build_errors: dict[str, str] = {}
 
     # ------------------------------------------------------------------ #
     # Routing
@@ -140,10 +144,16 @@ class QuoteClient:
                 return existing
             try:
                 instance = registry.create(name, **self._options.get(name, {}))
-            except Exception:  # noqa: BLE001 - a broken provider is skipped, not fatal
+            except Exception as exc:  # noqa: BLE001 - a broken provider is skipped, not fatal
+                self._build_errors[name] = f"could not be constructed: {exc}"
                 return None
+            self._build_errors.pop(name, None)
             self._instances[name] = instance
             return instance
+
+    def _build_failure(self, name: str) -> str:
+        """The reason ``name`` could not be built, for a failures report."""
+        return self._build_errors.get(name, "could not be constructed")
 
     # ------------------------------------------------------------------ #
     # Quotes
@@ -178,7 +188,7 @@ class QuoteClient:
         for name in names:
             provider = self._get_provider(name)
             if provider is None:
-                failures[name] = "could not be constructed"
+                failures[name] = self._build_failure(name)
                 continue
             if not provider.supports(resolved_market):
                 failures[name] = f"does not serve {resolved_market}"
@@ -255,7 +265,7 @@ class QuoteClient:
         for name in names:
             provider = self._get_provider(name)
             if provider is None:
-                failures[name] = "could not be constructed"
+                failures[name] = self._build_failure(name)
                 continue
             if not provider.supports(resolved_market):
                 failures[name] = f"does not serve {resolved_market}"
@@ -289,7 +299,7 @@ class QuoteClient:
         for name in DEFAULT_SEARCH_PROVIDERS:
             provider = self._get_provider(name)
             if provider is None:
-                failures[name] = "could not be constructed"
+                failures[name] = self._build_failure(name)
                 continue
             try:
                 return provider.search(query, limit)
@@ -317,7 +327,7 @@ class QuoteClient:
             if provider is None:
                 report[name] = ProviderHealth(
                     provider=name, ok=False, status="unavailable",
-                    detail="could not be constructed",
+                    detail=self._build_failure(name),
                 )
                 continue
             try:

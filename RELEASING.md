@@ -15,7 +15,26 @@ leaves your machine.
   python -m pip install --upgrade build twine
   ```
 
-## Release steps
+## Tag-only release (current path, no PyPI)
+
+The package is not on PyPI yet; consumers install a git tag. A release is:
+
+1. Bump the version (both places, see step 1 below), update the pinned tag
+   in README's install lines, and add a `CHANGELOG.md` entry.
+2. Pass the quality gate (step 2 below). `tests/test_readme.py` fails if the
+   README still pins an older tag.
+3. Commit, then tag and push:
+   ```
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin main vX.Y.Z
+   ```
+   CI re-runs on the tag and checks that it matches the package version.
+4. Update the consumers to `@vX.Y.Z` and run their tests.
+
+A pushed tag is effectively permanent too: consumers pin it, so never move
+or reuse one. Fix forward with the next patch version.
+
+## PyPI release steps
 
 ### 1. Bump the version
 
@@ -160,3 +179,5 @@ The affected files are `requirements.txt` in `Stock_LineBot`,
 - 版本號要**同時**改 `pyproject.toml` 與 `src/yolab_quote/__init__.py` 兩處。
 - 發布成功後，三隻 bot 的相依可從 `git+https://...@main` 改成固定的 PyPI
   版本（見上一節），較穩、Render build 較快。
+- **目前尚未上 PyPI**：發版只需打 git tag（見「Tag-only release」），bot 固定
+  `@vX.Y.Z`，不要用 `@main`。tag 推出去後不要移動或重用。

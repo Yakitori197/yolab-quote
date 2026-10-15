@@ -1,7 +1,10 @@
 # yolab-quote
 
-Unified market data for Taiwan / US stocks and crypto. One synchronous API,
-several providers, automatic fallback.
+[![CI](https://github.com/Yakitori197/yolab-quote/actions/workflows/ci.yml/badge.svg)](https://github.com/Yakitori197/yolab-quote/actions/workflows/ci.yml)
+
+Unified market data for Taiwan, US and other stock markets. One synchronous
+API, several providers, automatic fallback. Crypto markets are modelled, but
+ship without a built-in data source -- see [Crypto](#crypto).
 
 ```python
 import yolab_quote as yq
@@ -48,20 +51,33 @@ is what pushed one bot past its messaging platform's reply deadline.
 
 ## Install
 
+Not on PyPI yet. Install a tagged release straight from GitHub -- always pin
+a tag, never `@main`, so a rebuild cannot pick up different code:
+
 ```bash
-pip install yolab-quote[yfinance]
+pip install "yolab-quote[yfinance] @ git+https://github.com/Yakitori197/yolab-quote.git@v0.1.1"
 ```
+
+In a `requirements.txt`:
+
+```text
+yolab-quote[yfinance] @ git+https://github.com/Yakitori197/yolab-quote.git@v0.1.1
+```
+
+Installing from a git URL needs `git` on the machine. Slim Docker images
+(`python:*-slim`) do not include it; add
+`apt-get install -y --no-install-recommends git` before `pip install`.
 
 `yfinance` is an optional extra, not a hard dependency: every bot this came
 from guarded its import with `try/except ImportError`, and one of them
 actually shipped to production without it installed. The core package pulls
-in only `httpx`.
+in only `httpx`, which is all the built-in `yahoo` provider needs.
 
-```bash
-pip install yolab-quote              # core only
-pip install yolab-quote[yfinance]    # + the yfinance provider
-pip install yolab-quote[all]         # every provider
-```
+| Extra | Adds |
+|---|---|
+| *(none)* | `yahoo` provider only |
+| `[yfinance]` | the `yfinance` provider, tried first for its richer fields |
+| `[all]` | every optional provider (currently the same as `[yfinance]`) |
 
 ## Usage
 
@@ -165,23 +181,41 @@ client.close()
 | Japan | `jp_stock` | `7203.T` |
 | China | `cn_stock` | `600519.SS` |
 | UK / Germany / Korea | `uk_stock` / `de_stock` / `kr_stock` | `.L` / `.DE` / `.KS` |
-| Crypto | `crypto_spot`, `crypto_futures`, `crypto_futures_coin` | pass the market explicitly |
+| Crypto | `crypto_spot`, `crypto_futures`, `crypto_futures_coin` | no built-in provider -- see below |
 
-Equity markets are inferred from the symbol. Crypto markets must be passed
-explicitly, which keeps crypto guesswork out of the stock path:
+Equity markets are inferred from the symbol. Both built-in providers
+(`yfinance`, `yahoo`) serve every equity market above.
+
+### Crypto
+
+The crypto markets exist as identifiers and as an extension point, but **no
+built-in provider serves them**. Until you register one, a crypto query
+raises `AllProvidersFailedError` ("no providers configured for crypto_spot").
+
+To add a source, write a provider whose `markets` include the crypto market
+(see [Custom providers](#custom-providers)), register it, and route the
+market to it. Crypto markets must always be passed explicitly, which keeps
+crypto guesswork out of the stock path:
 
 ```python
-yq.get_quote("BTCUSDT", yq.CRYPTO_SPOT)
+yq.register("my_crypto", MyCryptoProvider)
+client = yq.QuoteClient(priority={yq.CRYPTO_SPOT: ["my_crypto"]})
+client.get_quote("BTCUSDT", yq.CRYPTO_SPOT)
 ```
 
 ## Configuration
 
-Provider order per market, via environment variable:
+Provider order per market, via environment variable. Names must come from
+`yq.available()` -- built in, that is `yfinance` and `yahoo`:
 
 ```bash
-YOLAB_QUOTE_TW_STOCK_PROVIDERS=yfinance,yahoo_scraper
+YOLAB_QUOTE_TW_STOCK_PROVIDERS=yfinance,yahoo
 YOLAB_QUOTE_US_STOCK_PROVIDERS=yfinance
 ```
+
+An unknown name is not an error at startup; it fails when queried, and
+`AllProvidersFailedError.failures` says `unknown provider '<name>'`. Check
+the failures if a fallback seems to be ignored.
 
 Or in code, which also lets you pass per-provider settings -- API keys and
 timeouts reach the constructor even for providers built lazily inside the
@@ -223,8 +257,9 @@ dispatching, so a provider is never handed a market it does not serve.
 
 ## 繁體中文說明
 
-這是一套統一的行情查詢函式庫，支援台股、美股與加密貨幣，同步 API 為主、
-提供 async 包裝層。
+這是一套統一的行情查詢函式庫，支援台股、美股等股票市場，同步 API 為主、
+提供 async 包裝層。加密貨幣市場目前只有識別碼與擴充介面，**沒有內建資料源**，
+需要自行註冊 provider（見上方 Crypto 一節）。
 
 重點特色：
 
@@ -234,8 +269,11 @@ dispatching, so a provider is never handed a market it does not serve.
   不會靜默回傳 `None` 讓你分不清「查無此股」和「網路掛了」。
 - **批次查詢併發處理**，數十檔一次查完，不會逐檔序列等待。
 - **數值一律為原生 `float`**，不會外洩 pandas／numpy 型別。
-- `yfinance` 是選用相依（`pip install yolab-quote[yfinance]`），核心只依賴
-  `httpx`。
+- `yfinance` 是選用相依（`[yfinance]` extra），核心只依賴 `httpx`。
+- **尚未發布到 PyPI**，請從 GitHub 安裝並固定版本 tag（例如 `@v0.1.1`），
+  不要用 `@main`，避免重新部署時拿到不同的程式碼。
+- 環境變數設定 provider 順序時，名稱只能是 `yfinance`、`yahoo`（或自行註冊的
+  名稱）。
 
 ```python
 import yolab_quote as yq
@@ -247,10 +285,15 @@ print(q.name, q.price, q.change_percent)   # 台積電 1085.0 1.40
 ## Development
 
 ```bash
-python -m pytest          # 152 tests, no network required
+pip install -e ".[dev,yfinance]"
+python -m pytest          # no network required
 python -m mypy src        # strict: disallow_untyped_defs
 python -m ruff check src tests
 ```
+
+CI runs all three on Python 3.10–3.13, Linux and Windows.
+`tests/test_readme.py` keeps this README honest: provider names, extras,
+public names and the version it mentions are checked against the code.
 
 Tests never touch the network. Providers expose seams (`_fetch_info`,
 `_fetch_history`) and the field mapping is a module-level pure function, so
